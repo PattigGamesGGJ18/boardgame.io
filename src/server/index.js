@@ -9,6 +9,8 @@
 const Koa = require('koa');
 const IO = require('koa-socket');
 const Redux = require('redux');
+const crypto = require('crypto');
+const _ = require('lodash');
 import { InMemory } from './db';
 import { createGameReducer } from '../core/reducer';
 
@@ -79,7 +81,30 @@ function Server({ games, db }) {
         }
       });
 
-      socket.on('sync', (gameID, playerID, numPlayers) => {
+      socket.on('sync', (playerName, gameID, playerID, numPlayers) => {
+        const joining = gameID === null;
+
+        if (joining) {
+          console.log(
+            'User ' + playerName + ' wants to join a ' + game.name + ' game.'
+          );
+
+          for (let [key, value] of roomInfo.entries()) {
+            if (value.size < game.maxPlayers) {
+              gameID = key;
+              break;
+            }
+          }
+
+          if (!gameID) {
+            const hash = crypto
+              .createHash('sha1')
+              .update(new Date().toString())
+              .digest('hex');
+            gameID = game.name + '_' + hash;
+          }
+        }
+
         socket.join(gameID);
 
         let roomClients = roomInfo.get(gameID);
@@ -89,6 +114,27 @@ function Server({ games, db }) {
         }
         roomClients.add(socket.id);
 
+        if (joining) {
+          console.log('User ' + playerName + ' will join ' + gameID);
+
+          // create playerid for roominfo of gameid
+          const players = _.map([...roomClients], c => {
+            // it's me, hooray....
+            if (c === socket.id) {
+              return -1; // default to invalid player id
+            }
+            return clientInfo.get(c).playerID;
+          });
+          playerID = _.max([...players]) + 1; // a -1 will turn to 0 here
+          console.log(
+            'Assigning user ' + playerName + ' playerID ' + playerID + '.'
+          );
+
+          // publish the matchmaking result to the client
+          socket.emit('join', gameID, playerID);
+        }
+
+        // store playerid for client in clientinfo
         clientInfo.set(socket.id, { gameID, playerID });
 
         let store = db.get(gameID);

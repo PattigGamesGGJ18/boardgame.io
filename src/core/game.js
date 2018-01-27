@@ -55,6 +55,8 @@ import { FlowWithPhases, SimpleFlow } from './flow';
  *   },
  * })
  *
+ * @param {number}    maxPlayers - The number of max players for one instance of
+ *                                 this game.
  * @param {...object} setup - Function that returns the initial state of G.
  * @param {...object} moves - A dictionary of move functions.
  * @param {...object} playerView - A function that returns a
@@ -65,8 +67,9 @@ import { FlowWithPhases, SimpleFlow } from './flow';
  *                           If it contains any other object, it is presumed to be a
  *                           configuration object for SimpleFlow() or FlowWithPhases().
  */
-function Game({ name, setup, moves, playerView, flow }) {
+function Game({ name, maxPlayers, setup, moves, playerView, flow }) {
   if (!name) name = 'default';
+  if (!maxPlayers) maxPlayers = 2;
   if (!setup) setup = () => ({});
   if (!moves) moves = {};
   if (!playerView) playerView = G => G;
@@ -79,6 +82,7 @@ function Game({ name, setup, moves, playerView, flow }) {
 
   return {
     name,
+    maxPlayers,
     setup,
     playerView,
     flow,

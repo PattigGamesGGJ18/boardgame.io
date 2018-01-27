@@ -21,18 +21,21 @@ export class Multiplayer {
    * Creates a new Mutiplayer instance.
    * @param {object} socketImpl - Override for unit tests.
    * @param {string} gameID - The game ID to connect to.
-   * @param {string} playerID - The player ID associated with this client.
+   * @param {string} playerName - The player name associated with this client.
    * @param {string} gameName - The game type (the `name` field in `Game`).
    * @param {string} numPlayers - The number of players.
    * @param {string} server - The game server in the form of 'hostname:port'. Defaults to the server serving the client if not provided.
    */
-  constructor(socketImpl, gameID, playerID, gameName, numPlayers, server) {
+  constructor(socketImpl, gameID, playerName, gameName, numPlayers, server) {
     this.gameName = gameName || 'default';
-    this.gameID = gameID || 'default';
-    this.playerID = playerID || null;
+    this.playerName = playerName || 'Player 1';
+    this.gameID = null;
+    this.playerID = null;
     this.numPlayers = numPlayers || 2;
-
-    this.gameID = this.gameName + ':' + this.gameID;
+    this.joined = new Promise((resolve, reject) => {
+      this._resolve = resolve;
+      this._reject = reject;
+    });
 
     if (socketImpl !== undefined) {
       this.socket = socketImpl;
@@ -84,8 +87,29 @@ export class Multiplayer {
       }
     });
 
+    // join a game
+    this.socket.on('join', (gameID, playerID) => {
+      console.log(
+        this.playerName +
+          ' is joining ' +
+          gameID +
+          ' as player ' +
+          playerID +
+          '.'
+      );
+      this.gameID = gameID;
+      this.playerID = playerID;
+      this._resolve(playerID, gameID);
+    });
+
     // Initial sync to get game state.
-    this.socket.emit('sync', this.gameID, this.playerID, this.numPlayers);
+    this.socket.emit(
+      'sync',
+      this.playerName,
+      this.gameID,
+      this.playerID,
+      this.numPlayers
+    );
 
     return store;
   }
@@ -98,7 +122,13 @@ export class Multiplayer {
     this.gameID = this.gameName + ':' + id;
 
     if (this.socket) {
-      this.socket.emit('sync', this.gameID, this.playerID, this.numPlayers);
+      this.socket.emit(
+        'sync',
+        this.playerName,
+        this.gameID,
+        this.playerID,
+        this.numPlayers
+      );
     }
   }
 
@@ -110,7 +140,13 @@ export class Multiplayer {
     this.playerID = id;
 
     if (this.socket) {
-      this.socket.emit('sync', this.gameID, this.playerID, this.numPlayers);
+      this.socket.emit(
+        'sync',
+        this.playerName,
+        this.gameID,
+        this.playerID,
+        this.numPlayers
+      );
     }
   }
 }

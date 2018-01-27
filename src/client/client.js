@@ -83,25 +83,35 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
         this.multiplayerClient = new Multiplayer(
           undefined,
           props.gameID,
-          props.playerID,
+          props.playerID, // id is name in multiplayer
           game.name,
           numPlayers,
           server
         );
+
         this.store = this.multiplayerClient.createStore(GameReducer);
+        this.multiplayerClient.joined.then(this.initialize.bind(this));
       } else {
         this.store = createStore(GameReducer);
+        this.initialize(this.props.playerID, this.props.gameID);
       }
+    }
+
+    initialize(playerID, gameID) {
+      console.log('Initializing client');
+
+      this.playerID = playerID;
+      this.gameID = gameID;
 
       this.moveAPI = createMoveDispatchers(
         game.moveNames,
         this.store,
-        props.playerID
+        this.playerID
       );
       this.eventAPI = createEventDispatchers(
         game.flow.eventNames,
         this.store,
-        props.playerID
+        this.playerID
       );
       this.createBoard();
       this.createDebugUI();
@@ -109,6 +119,8 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
       this.store.subscribe(() => {
         this.setState(this.store.getState());
       });
+
+      this.forceUpdate();
     }
 
     createBoard() {
@@ -117,12 +129,12 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
           let isActive = true;
 
           if (multiplayer) {
-            if (this.props.playerID == null) {
+            if (this.playerID == null) {
               isActive = false;
             }
             if (
               state.ctx.currentPlayer != 'any' &&
-              this.props.playerID != state.ctx.currentPlayer
+              this.playerID != state.ctx.currentPlayer
             ) {
               isActive = false;
             }
@@ -135,7 +147,7 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
           return {
             ...state,
             isActive,
-            G: game.playerView(state.G, state.ctx, this.props.playerID),
+            G: game.playerView(state.G, state.ctx, this.playerID),
           };
         };
 
@@ -144,8 +156,8 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
         this._board = React.createElement(Board, {
           moves: this.moveAPI,
           events: this.eventAPI,
-          gameID: this.props.gameID,
-          playerID: this.props.playerID,
+          gameID: this.gameID,
+          playerID: this.playerID,
         });
       }
     }
@@ -157,8 +169,8 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
           {
             moves: this.moveAPI,
             events: this.eventAPI,
-            gameID: this.props.gameID,
-            playerID: this.props.playerID,
+            gameID: this.gameID,
+            playerID: this.playerID,
           }
         );
       }
@@ -166,10 +178,10 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
 
     componentWillReceiveProps(nextProps) {
       if (this.multiplayerClient) {
-        if (nextProps.gameID != this.props.gameID) {
+        if (nextProps.gameID != this.gameID) {
           this.multiplayerClient.updateGameID(nextProps.gameID);
         }
-        if (nextProps.playerID != this.props.playerID) {
+        if (nextProps.playerID != this.playerID) {
           this.multiplayerClient.updatePlayerID(nextProps.playerID);
         }
       }
@@ -179,12 +191,12 @@ function Client({ game, numPlayers, board, multiplayer, debug }) {
       this.moveAPI = createMoveDispatchers(
         game.moveNames,
         this.store,
-        this.props.playerID
+        this.playerID
       );
       this.eventAPI = createEventDispatchers(
         game.flow.eventNames,
         this.store,
-        this.props.playerID
+        this.playerID
       );
     }
 
